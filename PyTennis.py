@@ -1,9 +1,14 @@
+import time
+import os
+import sys
 from DQNetwork import DQN
-from BallRegression import Network 
-
+from BallRegression import Network
+import numpy as np
 from keras.utils import to_categorical
 import tensorflow as tf
 import pygame
+from pygame.locals import *
+pygame.init()
 
 
 class pytennis:
@@ -16,6 +21,9 @@ class pytennis:
         self.lossA = 0
         self.lossB = 0
         self.restart = False
+
+        self.AgentA = DQN()
+        self.AgentB = DQN()
 
         # Testing
         self.net = Network(150, 450, 100, 600)
@@ -33,7 +41,6 @@ class pytennis:
 
         #self.out = self.net.DefaultToPosition(250)
 
-
         pygame.init()
         self.BLACK = (0, 0, 0)
 
@@ -49,7 +56,7 @@ class pytennis:
         # set up the window
         self.DISPLAYSURF = pygame.display.set_mode((600, 700), 0, 32)
         pygame.display.set_caption(
-            'REINFORCEMENT LEARNING (Discrete Mathematics) - TABLE TENNIS')
+            'REINFORCEMENT LEARNING (DQN) - TABLE TENNIS')
         # set up the colors
         self.BLACK = (0, 0, 0)
         self.WHITE = (255, 255, 255)
@@ -163,7 +170,6 @@ class pytennis:
             self.bally = self.NetworkA[1][count]
             self.ballx = self.NetworkA[0][count]
 
-            
             if self.GeneralReward == True:
                 self.playerax = self.randomVal(action)
             else:
@@ -190,7 +196,7 @@ class pytennis:
         info = str(diff)
 
         return obs, reward, done, info
-    
+
     def stepB(self, action, count=0):
         # playerB should play
         if count == 0:
@@ -199,7 +205,6 @@ class pytennis:
             self.bally = self.NetworkB[1][count]
             self.ballx = self.NetworkB[0][count]
 
-            
             if self.GeneralReward == True:
                 self.playerbx = self.randomVal(action)
             else:
@@ -227,7 +232,6 @@ class pytennis:
 
         return obs, reward, done, info
 
-    
     def computeLossA(self, reward):
         if reward == 0:
             self.lossA += 1
@@ -244,11 +248,11 @@ class pytennis:
 
     def render(self):
         # diplay team players
-        self.PLAYERA = pygame.image.load('images/cap.jpg')
+        self.PLAYERA = pygame.image.load('Images/cap.jpg')
         self.PLAYERA = pygame.transform.scale(self.PLAYERA, (50, 50))
-        self.PLAYERB = pygame.image.load('images/cap.jpg')
+        self.PLAYERB = pygame.image.load('Images/cap.jpg')
         self.PLAYERB = pygame.transform.scale(self.PLAYERB, (50, 50))
-        self.ball = pygame.image.load('images/ball.png')
+        self.ball = pygame.image.load('Images/ball.png')
         self.ball = pygame.transform.scale(self.ball, (15, 15))
 
         self.playerax = 150
@@ -275,7 +279,7 @@ class pytennis:
         restart = False
 
         while iteration < iterations:
-            
+
             self.display()
             self.randNumLabelA = self.myFontA.render(
                 'A (Win): '+str(self.updateRewardA) + ', A(loss): '+str(self.lossA), 1, self.BLACK)
@@ -283,13 +287,13 @@ class pytennis:
                 'B (Win): '+str(self.updateRewardB) + ', B(loss): ' + str(self.lossB), 1, self.BLACK)
             self.randNumLabelIter = self.myFontIter.render(
                 'Iterations: '+str(self.updateIter), 1, self.BLACK)
-            
+
             if nextplayer == 'A':
-                
+
                 if count == 0:
                     # Online DQN evaluates what to do
-                    q_valueA = AgentA.model.predict([stateA])
-                    actionA = AgentA.epsilon_greedy(q_valueA, iteration)
+                    q_valueA = self.AgentA.model.predict([stateA])
+                    actionA = self.AgentA.epsilon_greedy(q_valueA, iteration)
 
                     # Online DQN plays
                     obsA, rewardA, doneA, infoA = self.stepA(
@@ -297,30 +301,25 @@ class pytennis:
                     next_stateA = actionA
 
                     # Let's memorize what just happened
-                    AgentA.replay_memory.append(
+                    self.AgentA.replay_memory.append(
                         (stateA, actionA, rewardA, next_stateA, 1.0 - doneA))
                     stateA = next_stateA
 
-                
-
                 elif count == 49:
-                    
 
                     # Online DQN evaluates what to do
-                    q_valueA = AgentA.model.predict([stateA])
-                    actionA = AgentA.epsilon_greedy(q_valueA, iteration)
+                    q_valueA = self.AgentA.model.predict([stateA])
+                    actionA = self.AgentA.epsilon_greedy(q_valueA, iteration)
                     obsA, rewardA, doneA, infoA = self.stepA(
                         action=actionA, count=count)
                     next_stateA = actionA
-
 
                     self.updateRewardA += rewardA
                     self.computeLossA(rewardA)
 
                     # Let's memorize what just happened
-                    AgentA.replay_memory.append(
+                    self.AgentA.replay_memory.append(
                         (stateA, actionA, rewardA, next_stateA, 1.0 - doneA))
-                    
 
                     # restart the game if player A fails to get the ball, and let B start the game
                     if rewardA == 0:
@@ -334,14 +333,15 @@ class pytennis:
 
                     # Sample memories and use the target DQN to produce the target Q-Value
                     X_state_val, X_action_val, rewards, X_next_state_val, continues = (
-                        AgentA.sample_memories(AgentA.batch_size))
-                    next_q_values = AgentA.model.predict([X_next_state_val])
+                        self.AgentA.sample_memories(self.AgentA.batch_size))
+                    next_q_values = self.AgentA.model.predict(
+                        [X_next_state_val])
                     max_next_q_values = np.max(
                         next_q_values, axis=1, keepdims=True)
-                    y_val = rewards + continues * AgentA.discount_rate * max_next_q_values
+                    y_val = rewards + continues * self.AgentA.discount_rate * max_next_q_values
 
                     # Train the online DQN
-                    AgentA.model.fit(X_state_val, tf.keras.utils.to_categorical(
+                    self.AgentA.model.fit(X_state_val, tf.keras.utils.to_categorical(
                         X_next_state_val, num_classes=10), verbose=0)
 
                     nextplayer = 'B'
@@ -349,11 +349,11 @@ class pytennis:
 
                     count = 0
                     # evaluate A
-                    
+
                 else:
                     # Online DQN evaluates what to do
-                    q_valueA = AgentA.model.predict([stateA])
-                    actionA = AgentA.epsilon_greedy(q_valueA, iteration)
+                    q_valueA = self.AgentA.model.predict([stateA])
+                    actionA = self.AgentA.epsilon_greedy(q_valueA, iteration)
 
                     # Online DQN plays
                     obsA, rewardA, doneA, infoA = self.stepA(
@@ -361,12 +361,10 @@ class pytennis:
                     next_stateA = actionA
 
                     # Let's memorize what just happened
-                    AgentA.replay_memory.append(
+                    self.AgentA.replay_memory.append(
                         (stateA, actionA, rewardA, next_stateA, 1.0 - doneA))
                     stateA = next_stateA
-                    
-                
-                 
+
                 if nextplayer == 'A':
                     count += 1
                 else:
@@ -375,8 +373,8 @@ class pytennis:
             else:
                 if count == 0:
                     # Online DQN evaluates what to do
-                    q_valueB = AgentB.model.predict([stateB])
-                    actionB = AgentB.epsilon_greedy(q_valueB, iteration)
+                    q_valueB = self.AgentB.model.predict([stateB])
+                    actionB = self.AgentB.epsilon_greedy(q_valueB, iteration)
 
                     # Online DQN plays
                     obsB, rewardB, doneB, infoB = self.stepB(
@@ -384,16 +382,15 @@ class pytennis:
                     next_stateB = actionB
 
                     # Let's memorize what just happened
-                    AgentB.replay_memory.append(
+                    self.AgentB.replay_memory.append(
                         (stateB, actionB, rewardB, next_stateB, 1.0 - doneB))
                     stateB = next_stateB
-                
 
                 elif count == 49:
 
                     # Online DQN evaluates what to do
-                    q_valueB = AgentB.model.predict([stateB])
-                    actionB = AgentB.epsilon_greedy(q_valueB, iteration)
+                    q_valueB = self.AgentB.model.predict([stateB])
+                    actionB = self.AgentB.epsilon_greedy(q_valueB, iteration)
 
                     # Online DQN plays
                     obs, reward, done, info = self.stepB(
@@ -401,9 +398,9 @@ class pytennis:
                     next_stateB = actionB
 
                     # Let's memorize what just happened
-                    AgentB.replay_memory.append(
+                    self.AgentB.replay_memory.append(
                         (stateB, actionB, rewardB, next_stateB, 1.0 - doneB))
-                    
+
                     stateB = next_stateB
                     self.updateRewardB += rewardB
                     self.computeLossB(rewardB)
@@ -420,25 +417,25 @@ class pytennis:
 
                     # Sample memories and use the target DQN to produce the target Q-Value
                     X_state_val, X_action_val, rewards, X_next_state_val, continues = (
-                        AgentB.sample_memories(AgentB.batch_size))
-                    next_q_values = AgentB.model.predict([X_next_state_val])
+                        self.AgentB.sample_memories(self.AgentB.batch_size))
+                    next_q_values = self.AgentB.model.predict(
+                        [X_next_state_val])
                     max_next_q_values = np.max(
                         next_q_values, axis=1, keepdims=True)
-                    y_val = rewards + continues * AgentB.discount_rate * max_next_q_values
+                    y_val = rewards + continues * self.AgentB.discount_rate * max_next_q_values
 
                     # Train the online DQN
-                    AgentB.model.fit(X_state_val, tf.keras.utils.to_categorical(
+                    self.AgentB.model.fit(X_state_val, tf.keras.utils.to_categorical(
                         X_next_state_val, num_classes=10), verbose=0)
 
                     nextplayer = 'A'
                     self.updateIter += 1
                     # evaluate B
-                    
-                        
+
                 else:
                     # Online DQN evaluates what to do
-                    q_valueB = AgentB.model.predict([stateB])
-                    actionB = AgentB.epsilon_greedy(q_valueB, iteration)
+                    q_valueB = self.AgentB.model.predict([stateB])
+                    actionB = self.AgentB.epsilon_greedy(q_valueB, iteration)
 
                     # Online DQN plays
                     obsB, rewardB, doneB, infoB = self.stepB(
@@ -446,17 +443,14 @@ class pytennis:
                     next_stateB = actionB
 
                     # Let's memorize what just happened
-                    AgentB.replay_memory.append(
+                    self.AgentB.replay_memory.append(
                         (stateB, actionB, rewardB, next_stateB, 1.0 - doneB))
                     tateB = next_stateB
-                    
-                    
+
                 if nextplayer == 'B':
                     count += 1
                 else:
                     count = 0
-
-                
 
             iteration += 1
 
@@ -477,7 +471,7 @@ class pytennis:
             for event in pygame.event.get():
 
                 if event.type == QUIT:
-                    AgentA.model.save('AgentA.h5')
-                    AgentB.model.save('AgentB.h5')
+                    self.AgentA.model.save('AgentA.h5')
+                    self.AgentB.model.save('AgentB.h5')
                     pygame.quit()
                     sys.exit()
