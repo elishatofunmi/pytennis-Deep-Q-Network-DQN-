@@ -24,13 +24,13 @@ To clone the work and run the game.ipynb via jupyter notebook having executed th
 ``` 
 git clone https://github.com/elishatofunmi/pytennis-Deep-Q-Network-DQN-.git
 
-cd pytennis
+cd "pytennis-Deep-Q-Network-DQN-"
 
 pip install -r requirements.txt
 
-cd notebooks
+cd Notebook
 
-# go ahead to run game.ipynb cell by cell via jupyter notebook/ jupyterlab
+# go ahead to run 'pytennis notebook (DQN).ipynb' cell by cell via jupyter notebook/ jupyterlab
 
 ```
 
@@ -41,7 +41,7 @@ To clone the work and run the main.py file using the following commands below
 ``` 
 git clone https://github.com/elishatofunmi/pytennis-Deep-Q-Network-DQN-.git
 
-cd pytennis
+cd "pytennis-Deep-Q-Network-DQN-"
 
 pip install -r requirements.txt
 
