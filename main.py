@@ -24,6 +24,6 @@ AgentB = DQN()
 
 
 if __name__ == "__main__":
-    tennis = pytennis(fps=0)
+    tennis = pytennis(fps=70)
     tennis.reset()
     tennis.render()
