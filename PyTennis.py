@@ -471,7 +471,7 @@ class pytennis:
             for event in pygame.event.get():
 
                 if event.type == QUIT:
-                    self.AgentA.model.save('AgentA.h5')
-                    self.AgentB.model.save('AgentB.h5')
+                    self.AgentA.model.save('models/AgentA.h5')
+                    self.AgentB.model.save('models/AgentB.h5')
                     pygame.quit()
                     sys.exit()
